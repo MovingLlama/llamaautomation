@@ -1,0 +1,66 @@
+version: '3'
+volumes:
+  homeassdataconf:
+    driver: local
+    driver_opts:
+      type: nfs
+      o: addr=192.168.10.50,rw,nolock
+      device: ":/srv/pods/homeassistant/config"
+  hadashdashboards:
+    driver: local
+    driver_opts:
+      type: nfs
+      o: addr=192.168.10.50,rw,nolock
+      device: ":/srv/pods/hadash/app/dashboards"    
+  hadashha_conf.rb:
+    driver: local
+    driver_opts:
+      type: nfs
+      o: addr=192.168.10.50,rw,nolock
+      device: ":/srv/pods/hadash/app/lib/ha_conf.rb"
+  hadashhapush.cfg:
+    driver: local
+    driver_opts:
+      type: nfs
+      o: addr=192.168.10.50,rw,nolock
+      device: ":/srv/pods/hadash/app/hapush/hapush.cfg"  
+      
+networks:
+  homeassnet:
+    driver: overlay
+    attachable: true
+    
+    
+services:
+  homeassistant:
+    container_name: home-assistant
+    image: homeassistant/home-assistant
+    deploy:
+      replicas: 1
+      restart_policy:
+        condition: on-failure
+        max_attempts: 3
+    command: [ "python", "-m", "homeassistant", "--config", "/config", "--log-rotate-days", '3' ]        
+    volumes:
+    - homeassdataconf:/config
+    - /etc/localtime:/etc/localtime:ro
+    - /etc/timezone:/etc/timezone:ro
+    environment:
+    - TZ=Europe/Vienna
+    networks:
+    - homeassnet
+    ports:
+    - 8123:8123
+    - 8943:8943
+  hadash:
+    build: hadashboard/
+    ports:
+    - 3030:3030
+    environment:
+    - TZ=Europe/Vienna
+    - /etc/localtime:/etc/localtime:ro
+    - /etc/timezone:/etc/timezone:ro
+    volumes:
+    - hadashdashboards:/app/dashboards
+    - hadashha_conf.rb:/app/lib/ha_conf.rb
+    - hadashhapush.cfg:/app/hapush/hapush.cfg
